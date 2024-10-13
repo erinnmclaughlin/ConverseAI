@@ -1,9 +1,9 @@
 ﻿using System.Net.WebSockets;
 using Websocket.Client;
 
-namespace ConverseAI.Realtime.Chatbots;
+namespace ConverseAI.Realtime;
 
-public abstract class RealtimeChatbot : IDisposable
+public sealed class RealtimeChatbot : IDisposable
 {
     private readonly WebsocketClient _ws;
     private readonly List<IDisposable> _subscriptions = [];
@@ -12,7 +12,7 @@ public abstract class RealtimeChatbot : IDisposable
     public Action<string> OnAudioTranscriptReceived { get; set; } = _ => { };
     public Action OnFinishedSpeaking { get; set; } = () => { };
     
-    protected RealtimeChatbot(string apiKey, string name)
+    public RealtimeChatbot(string apiKey, string name)
     {
         _ws = new WebsocketClient(new Uri("wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01"), () =>
         {
@@ -29,30 +29,25 @@ public abstract class RealtimeChatbot : IDisposable
            var json = message.ReadFromJson();
            var type = json.GetProperty("type").GetString();
 
-           if (type is "response.audio.delta")
+           switch (type)
            {
-               var audio = json.GetProperty("delta").GetString()!;
-               OnAudioReceived.Invoke(audio);
-           }
-           else if (type is "response.audio.done")
-           {
-               OnFinishedSpeaking();
-           }
-           else if (type is "response.audio_transcript.done")
-           {
-               var transcript = json.GetProperty("transcript").GetString()!;
-               OnAudioTranscriptReceived.Invoke(transcript);
+               case "response.audio.delta":
+                   OnAudioReceived.Invoke(json.GetProperty("delta").GetString()!);
+                   break;
+               case "response.audio.done":
+                   OnFinishedSpeaking();
+                   break;
+               case "response.audio_transcript.done":
+                   OnAudioTranscriptReceived.Invoke(json.GetProperty("transcript").GetString()!);
+                   break;
            }
        }));
     }
 
     public void Dispose()
     {
-        foreach (var subscription in _subscriptions)
-            subscription.Dispose();
-        
+        _subscriptions.ForEach(s => s.Dispose());
         _ws.Dispose();
-        GC.SuppressFinalize(this);
     }
 
     public void CommitAudio()
@@ -71,13 +66,13 @@ public abstract class RealtimeChatbot : IDisposable
         _ws.SendMessage(new { type = "input_audio_buffer.append", audio = base64EncodedAudio });
     }
 
-    public virtual async Task Start()
+    public async Task Start()
     {
         if (!_ws.IsStarted)
             await _ws.Start();
     }
 
-    protected void UpdateSessionOptions(object options)
+    public void UpdateSessionOptions(object options)
     {
         _ws.SendMessage(new { type = "session.update", session = options });
     }

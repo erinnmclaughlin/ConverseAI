@@ -4,20 +4,25 @@ namespace ConverseAI;
 
 public static class FileUtilities
 {
-    public static void SaveAsTextFile(string fileName, string content)
+    private const int SampleRate = 24100; // actually 24000, but they are so boring lmao, speeding it up a tad
+    
+    public static void InitializeWavFile(this FileStream fileStream)
     {
-        File.WriteAllText(fileName, content);
+        var placeholderHeader = CreateWavHeader(0, SampleRate, 1, 16);
+        fileStream.Write(placeholderHeader);
     }
     
-    public static void SaveAsWaveFile(string fileName, string base64Audio)
+    public static void FinalizeWavFile(this FileStream fileStream)
     {
-        var pcmData = Convert.FromBase64String(base64Audio);
-        var wavHeader = CreateWavHeader(pcmData.Length, 24000, 1, 16);
-        using var fs = new FileStream(fileName, FileMode.Create, FileAccess.Write);
-        fs.Write(wavHeader);    // Write WAV header
-        fs.Write(pcmData);      // Write PCM data
+        // Calculate the final sizes.
+        var pcmDataLength = (int)(fileStream.Length - 44); // Exclude header size.
+        var finalHeader = CreateWavHeader(pcmDataLength, SampleRate, 1, 16);
+
+        // Write the correct header at the beginning of the file.
+        fileStream.Seek(0, SeekOrigin.Begin);
+        fileStream.Write(finalHeader);
     }
-    
+
     private static byte[] CreateWavHeader(int pcmDataLength, int sampleRate, short channels, short bitsPerSample)
     {
         var byteRate = sampleRate * channels * (bitsPerSample / 8);
