@@ -2,22 +2,22 @@
 
 namespace ConverseAI;
 
-public static class AudioHelper
+public static class FileUtilities
 {
+    public static void SaveAsTextFile(string fileName, string content)
+    {
+        File.WriteAllText(fileName, content);
+    }
+    
     public static void SaveAsWaveFile(string fileName, string base64Audio)
     {
-        // Convert Base64 string to byte array
         var pcmData = Convert.FromBase64String(base64Audio);
-
-        // Prepare WAV header
         var wavHeader = CreateWavHeader(pcmData.Length, 24000, 1, 16);
-
-        // Write WAV header + PCM data to the output file
         using var fs = new FileStream(fileName, FileMode.Create, FileAccess.Write);
-        fs.Write(wavHeader, 0, wavHeader.Length);  // Write WAV header
-        fs.Write(pcmData, 0, pcmData.Length);      // Write PCM data
+        fs.Write(wavHeader);    // Write WAV header
+        fs.Write(pcmData);      // Write PCM data
     }
-
+    
     private static byte[] CreateWavHeader(int pcmDataLength, int sampleRate, short channels, short bitsPerSample)
     {
         var byteRate = sampleRate * channels * (bitsPerSample / 8);
