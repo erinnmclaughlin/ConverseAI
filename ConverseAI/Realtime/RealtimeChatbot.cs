@@ -68,8 +68,7 @@ public sealed class RealtimeChatbot : IDisposable
 
     public async Task Start()
     {
-        if (!_ws.IsStarted)
-            await _ws.Start();
+        await _ws.Start();
     }
 
     public void UpdateSessionOptions(object options)
